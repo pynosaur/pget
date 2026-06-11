@@ -1,5 +1,5 @@
 name: pget
-version: 0.2.8
+version: 0.2.9
 author: @spacemany2k38
 description: Pure Python package manager for pynosaur ecosystem
 type: cli-tool

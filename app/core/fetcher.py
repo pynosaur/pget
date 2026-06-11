@@ -101,9 +101,9 @@ class GitHubFetcher:
             return None
 
     def url_exists(self, url, timeout=5):
-        """Check if a URL is reachable (HEAD-like probe)."""
+        """Check if a URL is reachable without downloading the body."""
         try:
-            req = urllib.request.Request(url)
+            req = urllib.request.Request(url, method='HEAD')
             urllib.request.urlopen(
                 req, timeout=timeout, context=self.ssl_context,
             )
@@ -140,6 +140,21 @@ class GitHubFetcher:
         except urllib.error.URLError as e:
             self.logger.error(f"Download failed: {e.reason}")
             return None
+
+    def _safe_extractall(self, tar, extract_root):
+        """Manual member validation for Pythons without extraction
+        filters: skip members that would land outside extract_root."""
+        root = Path(extract_root).resolve()
+        safe_members = []
+        for member in tar.getmembers():
+            target = (root / member.name).resolve()
+            if root != target and root not in target.parents:
+                self.logger.warning(
+                    f"Skipping unsafe archive member: {member.name}",
+                )
+                continue
+            safe_members.append(member)
+        tar.extractall(path=extract_root, members=safe_members)
 
     def get_repo_info(self, app_name):
         """Get repository information."""
@@ -305,7 +320,13 @@ class GitHubFetcher:
         self.logger.info(f"Extracting source code...")
         try:
             with tarfile.open(tar_path, "r:gz") as tar:
-                tar.extractall(path=extract_root)
+                try:
+                    # Reject absolute paths, traversal, and links that
+                    # escape the extraction root (tar path traversal).
+                    tar.extractall(path=extract_root, filter="data")
+                except TypeError:
+                    # Python builds without the filter parameter
+                    self._safe_extractall(tar, extract_root)
             self.logger.info("Extraction complete")
         except tarfile.TarError as e:
             self.logger.error(f"Failed to extract source: {e}")

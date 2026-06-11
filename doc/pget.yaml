@@ -1,5 +1,5 @@
 NAME: pget
-VERSION: "0.2.8"
+VERSION: "0.2.9"
 DESCRIPTION: >
   Pure Python package manager for the Pynosaur ecosystem. Installs, updates, lists, and removes Pynosaur CLI tools. Supports two installation modes:
 
